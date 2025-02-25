@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/animation.dart';
-import 'package:flutter/services.dart';
-import 'dart:math';
+import 'package:playing_cards/playing_cards.dart';
+import '../utils/card_styles.dart';
 
 class GameScreen extends StatefulWidget {
   const GameScreen({super.key});
@@ -10,228 +9,198 @@ class GameScreen extends StatefulWidget {
   State<GameScreen> createState() => _GameScreenState();
 }
 
-class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _rotationAnimation;
-  Offset _cardPosition = const Offset(0, 0);
+class _GameScreenState extends State<GameScreen> {
+  late List<PlayingCard> playerCards;
+  late List<PlayingCard> opponentCards;
+  PlayingCard? centerCard;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 500),
-      vsync: this,
-    );
-
-    _rotationAnimation = Tween<double>(begin: 0, end: pi / 16).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _initializeCards();
   }
 
-  void _dragUpdate(DragUpdateDetails details) {
-    setState(() {
-      _cardPosition += details.delta;
-    });
-  }
-
-  void _dragEnd(DragEndDetails details) {
-    setState(() {
-      _cardPosition = const Offset(0, 0);
-    });
+  void _initializeCards() {
+    List<PlayingCard> deck = standardFiftyTwoCardDeck();
+    deck.shuffle();
+    
+    playerCards = deck.sublist(0, 13);
+    opponentCards = deck.sublist(13, 26);
+    centerCard = deck[26];
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          // Background Gradient
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.green.shade900, Colors.black],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-          ),
-
-          // Opponent 1 (Top)
-          Positioned(top: 40, left: 0, right: 0, child: _buildPlayerHand(true, 'Player 1')),
-
-          // Opponent 2 (Right)
-          Positioned(
-            top: MediaQuery.of(context).size.height * 0.3,
-            right: 20,
-            child: RotatedBox(quarterTurns: 1, child: _buildPlayerHand(true, 'Player 2')),
-          ),
-
-          // Center Pot
-          Center(
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.5),
-                borderRadius: BorderRadius.circular(100),
-                boxShadow: [
-                  BoxShadow(color: Colors.green.shade400, blurRadius: 10, spreadRadius: 1),
-                ],
-              ),
-              child: const Text(
-                'Pot: ₹1000',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-
-          // Player Cards (Draggable)
-          Positioned(
-            bottom: 60,
-            left: 0,
-            right: 0,
-            child: _buildDraggablePlayerCards('You'),
-          ),
-
-          // Action Buttons
-          Positioned(
-            bottom: 10,
-            left: 0,
-            right: 0,
-            child: _buildActionButtons(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // Opponent & Player Hand UI
-  Widget _buildPlayerHand(bool faceDown, String playerName) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          playerName,
-          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(
-            3,
-            (index) => Transform.rotate(
-              angle: faceDown ? 0 : (_rotationAnimation.value * (index - 1)),
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                height: 100,
-                width: 65,
-                decoration: BoxDecoration(
-                  color: faceDown ? Colors.red : Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.white, width: 2),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.4),
-                      blurRadius: 6,
-                      spreadRadius: 2,
-                    ),
-                  ],
-                ),
-              ),
+      body: Container(
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: const AssetImage('assets/poker_table_bg.jpg'),
+            fit: BoxFit.cover,
+            colorFilter: ColorFilter.mode(
+              Colors.black.withOpacity(0.5),
+              BlendMode.darken,
             ),
           ),
         ),
-      ],
-    );
-  }
+        child: Column(
+          children: [
+            _buildPlayersBar(),
 
-  // Player Cards (Draggable)
-  Widget _buildDraggablePlayerCards(String playerName) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          playerName,
-          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 10),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(3, (index) {
-            return GestureDetector(
-              onPanUpdate: _dragUpdate,
-              onPanEnd: _dragEnd,
-              child: Transform.translate(
-                offset: _cardPosition,
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 4),
-                  height: 120,
-                  width: 75,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.yellow, width: 2),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.yellowAccent.withOpacity(0.4),
-                        blurRadius: 8,
-                        spreadRadius: 2,
+            // Center area with opponent cards
+            Expanded(
+              child: Stack(
+                children: [
+                  // Opponent Cards (face down)
+                  Positioned(
+                    top: 20,
+                    left: 0,
+                    right: 0,
+                    child: SizedBox(
+                      height: 150,
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: opponentCards
+                              .map((card) => Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                                    child: PlayingCardView(
+                                      card: card,
+                                      showBack: true,
+                                      style: CardStyles.defaultStyle,
+                                    ),
+                                  ))
+                              .toList(),
+                        ),
                       ),
-                    ],
-                    image: const DecorationImage(
-                      image: AssetImage('assets/card_front.png'),
-                      fit: BoxFit.cover,
                     ),
                   ),
+
+                  // Center Card
+                  if (centerCard != null)
+                    Center(
+                      child: PlayingCardView(
+                        card: centerCard!,
+                        style: CardStyles.defaultStyle,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+
+            // Player Cards Area
+            Container(
+              height: 200,
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.7),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(30),
+                  topRight: Radius.circular(30),
+                ),
+                border: Border.all(
+                  color: Colors.amber.withOpacity(0.3),
+                  width: 1,
                 ),
               ),
-            );
-          }),
+              child: Column(
+                children: [
+                  Container(
+                    width: 50,
+                    height: 4,
+                    margin: const EdgeInsets.only(top: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Row(
+                        children: playerCards
+                            .map((card) => Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                                  child: PlayingCardView(
+                                    card: card,
+                                    style: CardStyles.defaultStyle,
+                                  ),
+                                ))
+                            .toList(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlayersBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.7),
+        border: Border(
+          bottom: BorderSide(
+            color: Colors.amber.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+      ),
+      child: SafeArea(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _buildPlayerProfile('Player 1', '₹5000', 'assets/avatar1.png'),
+            _buildPlayerProfile('Player 2', '₹7000', 'assets/avatar2.png'),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlayerProfile(String name, String balance, String avatarPath) {
+    return Row(
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.amber, width: 2),
+            image: DecorationImage(
+              image: AssetImage(avatarPath),
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              name,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              balance,
+              style: TextStyle(
+                color: Colors.amber.shade200,
+                fontSize: 12,
+              ),
+            ),
+          ],
         ),
       ],
     );
-  }
-
-  // Action Buttons
-  Widget _buildActionButtons() {
-    return Padding(
-      padding: const EdgeInsets.all(12.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _buildGameButton('Fold', Colors.red.shade700, () {}),
-          _buildGameButton('Call', Colors.blue.shade700, () {}),
-          _buildGameButton('Raise', Colors.green.shade700, () {}),
-        ],
-      ),
-    );
-  }
-
-  // Custom Action Buttons
-  Widget _buildGameButton(String label, Color color, VoidCallback onTap) {
-    return ElevatedButton(
-      onPressed: onTap,
-      style: ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
-        backgroundColor: color,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        elevation: 5,
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
   }
 }
 

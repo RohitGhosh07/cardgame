@@ -30,12 +30,13 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  card_game: ^1.1.0
+  playing_cards: ^0.4.1+11
+  playing_cards_layouts: ^1.0.1
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
-  card_game: ^1.1.0
-  flutter_hooks: ^0.20.5
   # google_fonts: ^6.2.1
 
 dev_dependencies:
