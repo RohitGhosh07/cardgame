@@ -29,24 +29,34 @@ class KlondikeWorld extends World with HasGameReference<KlondikeGame> {
   Future<void> onLoad() async {
     await Flame.images.load('klondike-sprites.png');
 
-    stock.position = Vector2(cardGap, topGap);
-    waste.position = Vector2(cardSpaceWidth + cardGap, topGap);
+    // Calculate center-aligned positions
+    final totalWidth = 7 * cardSpaceWidth + KlondikeGame.sideGap * 2;
+    final startX = KlondikeGame.sideGap;
+    final startY = KlondikeGame.headerHeight + KlondikeGame.topGap;
 
+    // Position stock and waste piles
+    stock.position = Vector2(startX, startY);
+    waste.position = Vector2(startX + cardSpaceWidth, startY);
+
+    // Position foundation piles (right-aligned)
+    final foundationStartX = startX + 3 * cardSpaceWidth;
     for (var i = 0; i < 4; i++) {
       foundations.add(
         FoundationPile(
           i,
           checkWin,
-          position: Vector2((i + 3) * cardSpaceWidth + cardGap, topGap),
+          position: Vector2(foundationStartX + i * cardSpaceWidth, startY),
         ),
       );
     }
+
+    // Position tableau piles with proper spacing
     for (var i = 0; i < 7; i++) {
       tableauPiles.add(
         TableauPile(
           position: Vector2(
-            i * cardSpaceWidth + cardGap,
-            cardSpaceHeight + topGap,
+            startX + i * cardSpaceWidth,
+            startY + cardSpaceHeight,
           ),
         ),
       );
@@ -74,18 +84,31 @@ class KlondikeWorld extends World with HasGameReference<KlondikeGame> {
     addAll(cards);
     add(baseCard);
 
-    playAreaSize =
-        Vector2(7 * cardSpaceWidth + cardGap, 4 * cardSpaceHeight + topGap);
-    final gameMidX = playAreaSize.x / 2;
+    // Update play area size
+    playAreaSize = Vector2(
+      totalWidth,
+      5 * cardSpaceHeight + KlondikeGame.headerHeight + KlondikeGame.topGap,
+    );
 
-    addButton('New deal', gameMidX, Action.newDeal);
-    addButton('Same deal', gameMidX + cardSpaceWidth, Action.sameDeal);
-    addButton('Draw 1 or 3', gameMidX + 2 * cardSpaceWidth, Action.changeDraw);
-    addButton('Have fun', gameMidX + 3 * cardSpaceWidth, Action.haveFun);
+    // Center-align buttons
+    final buttonY = KlondikeGame.headerHeight / 2;
+    final totalButtonWidth = 4 * (KlondikeGame.buttonWidth + KlondikeGame.buttonGap);
+    final buttonStartX = (totalWidth - totalButtonWidth) / 2;
 
+    // Add buttons with proper spacing
+    for (var i = 0; i < 4; i++) {
+      final buttonX = buttonStartX + i * (KlondikeGame.buttonWidth + KlondikeGame.buttonGap);
+      addButton(
+        _getButtonLabel(i),
+        buttonX,
+        _getButtonAction(i),
+      );
+    }
+
+    // Center camera
     final camera = game.camera;
     camera.viewfinder.visibleGameSize = playAreaSize;
-    camera.viewfinder.position = Vector2(gameMidX, 0);
+    camera.viewfinder.position = Vector2(totalWidth / 2, 0);
     camera.viewfinder.anchor = Anchor.topCenter;
 
     deal();
@@ -94,20 +117,41 @@ class KlondikeWorld extends World with HasGameReference<KlondikeGame> {
   void addButton(String label, double buttonX, Action action) {
     final button = FlatButton(
       label,
-      size: Vector2(KlondikeGame.cardWidth, 0.6 * topGap),
-      position: Vector2(buttonX, topGap / 2),
+      size: Vector2(KlondikeGame.buttonWidth, KlondikeGame.buttonHeight),
+      position: Vector2(
+        buttonX - (KlondikeGame.buttonWidth / 2),
+        topGap / 2 - (KlondikeGame.buttonHeight / 2),
+      ),
       onReleased: () {
         if (action == Action.haveFun) {
-          // Shortcut to the "win" sequence, for Tutorial purposes only.
           letsCelebrate();
         } else {
-          // Restart with a new deal or the same deal as before.
           game.action = action;
           game.world = KlondikeWorld();
         }
       },
     );
     add(button);
+  }
+
+  String _getButtonLabel(int index) {
+    switch (index) {
+      case 0: return 'New Deal';
+      case 1: return 'Same Deal';
+      case 2: return 'Draw ${game.klondikeDraw == 1 ? "3" : "1"}';
+      case 3: return 'Have Fun';
+      default: return '';
+    }
+  }
+
+  Action _getButtonAction(int index) {
+    switch (index) {
+      case 0: return Action.newDeal;
+      case 1: return Action.sameDeal;
+      case 2: return Action.changeDraw;
+      case 3: return Action.haveFun;
+      default: throw Exception('Invalid button index');
+    }
   }
 
   void deal() {

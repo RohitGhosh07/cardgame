@@ -1,59 +1,80 @@
 import 'package:flame/components.dart';
-import 'package:flame/input.dart';
-import 'package:flame/text.dart';
+import 'package:flame/events.dart';
 import 'package:flutter/material.dart';
+import '../klondike_game.dart';
 
-class FlatButton extends ButtonComponent {
+class FlatButton extends PositionComponent with TapCallbacks {
+  final String text;
+  final VoidCallback onReleased;
+  bool _isPressed = false;
+  late TextComponent _label;
+  late final Paint _bgPaint;
+  late final Paint _pressedPaint;
+
   FlatButton(
-    String text, {
-    super.size,
-    super.onReleased,
-    super.position,
-  }) : super(
-          button: ButtonBackground(const Color(0xffece8a3)),
-          buttonDown: ButtonBackground(Colors.red),
-          children: [
-            TextComponent(
-              text: text,
-              textRenderer: TextPaint(
-                style: TextStyle(
-                  fontSize: 0.5 * size!.y,
-                  fontWeight: FontWeight.bold,
-                  color: const Color(0xffdbaf58),
-                ),
-              ),
-              position: size / 2.0,
-              anchor: Anchor.center,
-            ),
-          ],
-          anchor: Anchor.center,
-        );
-}
+    this.text, {
+    required Vector2 size,
+    required Vector2 position,
+    required this.onReleased,
+  }) : super(size: size, position: position) {
+    _bgPaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          KlondikeGame.accentColor,
+          KlondikeGame.accentColor.withOpacity(0.8),
+        ],
+      ).createShader(
+        Rect.fromLTWH(0, 0, size.x, size.y),
+      );
 
-class ButtonBackground extends PositionComponent with HasAncestor<FlatButton> {
-  final _paint = Paint()..style = PaintingStyle.stroke;
-
-  late double cornerRadius;
-
-  ButtonBackground(Color color) {
-    _paint.color = color;
+    _pressedPaint = Paint()
+      ..color = KlondikeGame.accentColor.withOpacity(0.6);
   }
 
   @override
-  void onMount() {
-    super.onMount();
-    size = ancestor.size;
-    cornerRadius = 0.3 * size.y;
-    _paint.strokeWidth = 0.05 * size.y;
+  Future<void> onLoad() async {
+    _label = TextComponent(
+      text: text,
+      textRenderer: TextPaint(
+        style: const TextStyle(
+          fontSize: 48,
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+    _label.anchor = Anchor.center;
+    _label.position = size / 2;
+    add(_label);
   }
 
-  late final _background = RRect.fromRectAndRadius(
-    size.toRect(),
-    Radius.circular(cornerRadius),
-  );
+  @override
+  bool onTapDown(TapDownEvent event) {
+    _isPressed = true;
+    return true;
+  }
+
+  @override
+  bool onTapUp(TapUpEvent event) {
+    _isPressed = false;
+    onReleased();
+    return true;
+  }
+
+  @override
+  bool onTapCancel(TapCancelEvent event) {
+    _isPressed = false;
+    return true;
+  }
 
   @override
   void render(Canvas canvas) {
-    canvas.drawRRect(_background, _paint);
+    final rrect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, 0, size.x, size.y),
+      const Radius.circular(KlondikeGame.buttonRadius),
+    );
+    canvas.drawRRect(rrect, _isPressed ? _pressedPaint : _bgPaint);
   }
 }

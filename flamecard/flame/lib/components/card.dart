@@ -63,6 +63,16 @@ class Card extends PositionComponent
 
   @override
   void render(Canvas canvas) {
+    // Add shadow
+    final shadowPath = Path()
+      ..addRRect(KlondikeGame.cardRRect);
+    canvas.drawShadow(
+      shadowPath,
+      KlondikeGame.shadowColor,
+      3.0,
+      true,
+    );
+    
     if (isBaseCard) {
       _renderBaseCard(canvas);
       return;
